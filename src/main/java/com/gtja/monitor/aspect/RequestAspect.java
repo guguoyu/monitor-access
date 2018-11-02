@@ -1,8 +1,8 @@
 package com.gtja.monitor.aspect;
 
 
+import com.gtja.monitor.dto.RequestDataDto;
 import com.gtja.monitor.resource.RequestCount;
-import com.gtja.monitor.thread.ProducerThread;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
@@ -14,6 +14,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.concurrent.BlockingDeque;
 
 /**
  * 此类为一个切面类，主要作用就是对接口的请求进行拦截
@@ -21,7 +22,7 @@ import javax.servlet.http.HttpServletRequest;
  *
  * @author guguoyu
  * @since 2018/10/15
- * @version 1.0
+ * @version 2.0
  */
 @Aspect
 @Component
@@ -32,7 +33,6 @@ public class RequestAspect {
 
     //使用org.slf4j.Logger,这是spring实现日志的方法
     private final static Logger logger = LoggerFactory.getLogger(RequestAspect.class);
-
 
     /**
      * 表示在执行被@MonitorRequest注解修饰的方法之前 会执行doBefore()方法
@@ -46,28 +46,21 @@ public class RequestAspect {
         //获取到请求对象
         HttpServletRequest request = attributes.getRequest();
 
-        //URL：根据请求对象拿到访问的地址
-        logger.info("url=" + request.getRequestURL());
-        //获取请求的方法，是Get还是Post请求
-        logger.info("method=" + request.getMethod());
-        //ip：获取到访问
-        logger.info("ip=" + request.getRemoteAddr());
-        //获取被拦截的类名和方法名
-        logger.info("class=" + joinPoint.getSignature().getDeclaringTypeName() +
-                "and method name=" + joinPoint.getSignature().getName());
-        //参数
-        logger.info("参数=" + joinPoint.getArgs().toString());
-
-
         //获取当前请求的毫秒值
-        long currentTimeMillis = System.currentTimeMillis();
+        long requestTimeMillis = System.currentTimeMillis();
         //获取接口的请求地址
         String requestURL = request.getRequestURL().toString();
-        logger.info("请求地址URL:" + requestURL + ",请求的时间戳:" + currentTimeMillis);
-        //新建一个线程，并且启动
-        ProducerThread producerThread = new ProducerThread(requestURL, currentTimeMillis, requestCount);
-        new Thread(producerThread).start();
-
+        logger.info("请求地址URL:" + requestURL + ",请求的时间戳:" + requestTimeMillis);
+        //将请求地址和请求时间存入实体类中
+        RequestDataDto requestDataDto = new RequestDataDto(requestURL, requestTimeMillis);
+        //获取阻塞队列
+        BlockingDeque<RequestDataDto> linkedBlockingDeque = requestCount.getLinkedBlockingDeque();
+        try {
+            //向队列中存放数据
+            linkedBlockingDeque.put(requestDataDto);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
     }
 }
