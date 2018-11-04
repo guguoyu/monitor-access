@@ -43,10 +43,10 @@
         </dependency>
 
         <!--redis依赖-->
-        <dependency>
+        <!--<dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
-            <!--1.5版本默认使用的是jedis连接池技术，2.0默认用的是lettuce连接池
+            &lt;!&ndash;1.5版本默认使用的是jedis连接池技术，2.0默认用的是lettuce连接池
                 这里使用jedis连接池，所以排除lettuce
             &lt;!&ndash;排除依赖&ndash;&gt;
             <exclusions>
@@ -55,15 +55,15 @@
                     <groupId>io.lettuce</groupId>
                     <artifactId>lettuce-core</artifactId>
                 </exclusion>
-            </exclusions>-->
-        </dependency>
+            </exclusions>&ndash;&gt;
+        </dependency>-->
         <!--spring2.0集成的redis需要的commons-pool2-->
         <!--<dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-pool2</artifactId>
         </dependency>-->
 
-        <dependency>
+        <!--<dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <version>5.0.6.RELEASE</version>
@@ -77,13 +77,18 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.9.5</version>
-        </dependency>
+        </dependency>-->
 
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!--打包成普通的jar包，不含有tomcat服务器-->
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -91,14 +96,14 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
-            <!--跳过测试-->
+            &lt;!&ndash;跳过测试&ndash;&gt;
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <skipTests>true</skipTests>
                 </configuration>
-            </plugin>
+            </plugin>-->
         </plugins>
     </build>
 

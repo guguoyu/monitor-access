@@ -13,7 +13,7 @@ public class MaxRequestCountDto {
     //某一分钟时间段的起始时间
     private String startTime;
     //某一分钟时间段的结束时间
-    private String lastTime;
+    private String endTime;
     //某一分钟时间段的最大访问量
     private Integer maxCount;
 
@@ -33,12 +33,12 @@ public class MaxRequestCountDto {
         this.startTime = startTime;
     }
 
-    public String getLastTime() {
-        return lastTime;
+    public String getEndTime() {
+        return endTime;
     }
 
-    public void setLastTime(String lastTime) {
-        this.lastTime = lastTime;
+    public void setEndTime(String endTime) {
+        this.endTime = endTime;
     }
 
     public Integer getMaxCount() {
@@ -54,7 +54,7 @@ public class MaxRequestCountDto {
         return "MaxRequestCountDto{" +
                 "requestURL='" + requestURL + '\'' +
                 ", startTime='" + startTime + '\'' +
-                ", lastTime='" + lastTime + '\'' +
+                ", endTime='" + endTime + '\'' +
                 ", maxCount=" + maxCount +
                 '}';
     }

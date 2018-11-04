@@ -8,13 +8,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 
     @MonitorRequest
-    @RequestMapping("/testaspect")
+    @RequestMapping("/monitor")
     public String test(){
         return "this is a test";
     }
 
-    @MonitorRequest
-    @RequestMapping("/testaspect1")
+
+    @RequestMapping("/nomonitor")
     public String test1(){
         return "this is a test1";
     }

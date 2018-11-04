@@ -1,19 +1,19 @@
 package com.gtja.monitor.resource;
 
 import com.gtja.monitor.dto.MaxRequestCountDto;
+import com.gtja.monitor.dto.RequestDataDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 /**
- * 此类是用来存放请求的数据，目前包含以下两部分
+ * 此类是用来存放请求的数据，目前包含以下两个属性
  * 1.属性requestMap存放的是每次请求的数据，此属性的注解已作了详细的说明
  * 2.属性maxRequestCountMap存放的是每个请求，在某个时间段的 最大访问量
  *
@@ -26,9 +26,15 @@ public class RequestCount {
 
     private final Logger logger = LoggerFactory.getLogger(RequestCount.class);
 
+    private BlockingDeque<RequestDataDto> linkedBlockingDeque = new LinkedBlockingDeque<>(100000);
+
+    public BlockingDeque<RequestDataDto> getLinkedBlockingDeque() {
+        return linkedBlockingDeque;
+    }
+
     /**
      * 用来存储每次请求的数据
-     * key为请求地址，
+     * key为请求地址，例如：http:127.0.0.1:8080/testrequest
      * value为一个 子map，其中 子map中的key为请求时间的时间戳，子map中的value为对应的请求次数
      */
     private Map<String, Map<Long, Integer>> requestMap = new ConcurrentHashMap<>();
@@ -42,38 +48,42 @@ public class RequestCount {
     private Map<String, MaxRequestCountDto> maxRequestCountMap = new ConcurrentHashMap<>();
 
 
+    public RequestDataDto take() throws InterruptedException {
+        RequestDataDto requestDataDto = this.linkedBlockingDeque.take();
+        return requestDataDto;
+    }
+
     /**
-     * 此方法主要是将请求的数据统计到内存中
-     *
-     * @param requestURL    请求地址
-     * @param curTimeMillis 请求的时间戳（毫秒值）
+     * 此方法主要是将请求的队列中数据统计到requestMap中
      */
-    public synchronized void put(String requestURL, Long curTimeMillis) {
+    public void put(String requestURL, Long requestTimeMillis) {
         Map<Long, Integer> curTimeCountMap = this.requestMap.get(requestURL);
-        if (null == curTimeCountMap) {//curTimeCountMap为null，说明是第一次请求，或者数据被复制为null
+        if (null == curTimeCountMap) {//curTimeCountMap为null，说明是第一次请求
             //为空，则直接创建一个新对象，
             curTimeCountMap = new ConcurrentHashMap<Long, Integer>();
             //并将当前时间作为key，1作为次数存入
-            curTimeCountMap.put(curTimeMillis, 1);
+            curTimeCountMap.put(requestTimeMillis, 1);
             //存入到内存中
             this.requestMap.put(requestURL, curTimeCountMap);
         } else {//curTimeCounMap != null
             //获取该请求对应的时间戳的访问次数
-            Integer requestCount = curTimeCountMap.get(curTimeMillis);
+            Integer requestCount = curTimeCountMap.get(requestTimeMillis);
             if (null == requestCount) {
-                curTimeCountMap.put(curTimeMillis, 1);
+                curTimeCountMap.put(requestTimeMillis, 1);
             } else {
-                curTimeCountMap.put(curTimeMillis, requestCount + 1);
+                curTimeCountMap.put(requestTimeMillis, requestCount + 1);
             }
         }
     }
 
     /**
-     * 首先遍历requestMap中的数据
+     * 此方法的作用：
+     * 1.从requestMap中清理掉一些过期的数据，只保留每个接口最近一分钟的访问数据
+     * 2.计算每个接口最近一分钟的访问数量maxTemp，并与内存保存的最大访问数量进行比较，
+     * 如果maxTemp＞内存中保存的，则更新内存数据
+     * 此方法会有一个定时任务每隔1秒过来执行
      */
-    public synchronized void update() {
-        /*计算出当前时间毫秒值*/
-        long curTimeMillis = System.currentTimeMillis();
+    public void update(long curTimeMillis) {
         /*计算出1分钟之前的时间毫秒值*/
         long oneMinuteAgoMillis = curTimeMillis - 1000 * 60;
 
@@ -96,14 +106,13 @@ public class RequestCount {
                     maxTemp += curTimeCountMap.get(curTime);
                 }
             }
-
             if (maxTemp > 0) {
                 /*将当前时间毫秒值和1分钟之前的毫秒值转换成指定的格式*/
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 Date currentDate = new Date(curTimeMillis);
                 Date oneMinuteAgoDate = new Date(oneMinuteAgoMillis);
                 String startTime = sdf.format(oneMinuteAgoDate);
-                String lastTime = sdf.format(currentDate);
+                String endTime = sdf.format(currentDate);
                 /*获取该请求的最大访问量的对象*/
                 MaxRequestCountDto maxRequestCountDto = maxRequestCountMap.get(requestURL);
                 /*如果maxRequestCountDto为null，说明是第一次存储*/
@@ -111,22 +120,21 @@ public class RequestCount {
                     maxRequestCountDto = new MaxRequestCountDto();
                     maxRequestCountDto.setRequestURL(requestURL);
                     maxRequestCountDto.setStartTime(startTime);
-                    maxRequestCountDto.setLastTime(lastTime);
+                    maxRequestCountDto.setEndTime(endTime);
                     maxRequestCountDto.setMaxCount(maxTemp);
                     /*最后存入到内存中*/
                     maxRequestCountMap.put(requestURL, maxRequestCountDto);
                 } else {
-                    /*如果maxRequestCountDto不为null,说明内存中已存在之前记录的最大访问量，只需进行判断即可*/
+                    /*如果maxRequestCountDto不为null,说明内存中已存在之前记录的最大访问量，只需拿当前计算的最大值与内存的最大值进行判断即可*/
                     if (maxTemp > maxRequestCountDto.getMaxCount()) {
                         maxRequestCountDto.setStartTime(startTime);
-                        maxRequestCountDto.setLastTime(lastTime);
+                        maxRequestCountDto.setEndTime(endTime);
                         maxRequestCountDto.setMaxCount(maxTemp);
+                        logger.info(maxRequestCountMap.toString());
                     }
                 }
             }
         }
-
-        logger.info(maxRequestCountMap.toString());
     }
 
 }
