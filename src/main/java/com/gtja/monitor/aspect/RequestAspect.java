@@ -16,15 +16,18 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.servlet.http.HttpServletRequest;
 import java.util.concurrent.BlockingDeque;
 
+import com.gtja.monitor.annotation.MonitorRequest;
+
 /**
  * 此类为一个切面类，主要作用就是对接口的请求进行拦截
- * 拦截的方式，只需要在指定接口方法上面加上@MonitorRequest注解即可
+ * 拦截的方式，只需要在指定接口方法上面加上{@link MonitorRequest}注解即可
  *
  * @author guguoyu
- * @since 2018/10/15
  * @version 2.0
+ * @since 2018/10/15
+ * @since 1.8
  */
-@Aspect
+@Aspect//加上次注解，意思是说此类为一个切面类
 @Component
 public class RequestAspect {
 
@@ -35,7 +38,11 @@ public class RequestAspect {
     private final static Logger logger = LoggerFactory.getLogger(RequestAspect.class);
 
     /**
-     * 表示在执行被@MonitorRequest注解修饰的方法之前 会执行doBefore()方法
+     * 当调用接口（被{@link MonitorRequest}注解修饰）的时候，会先执行{@link #doBefore(JoinPoint)}方法.<br>
+     * 此方法的逻辑：<br>
+     * 1.先获取请求地址和当前系统的时间戳<br>
+     * 2.将请求地址和系统时间戳封装到{@link RequestDataDto requestDataDto}中<br>
+     * 3.将封装好的数据放入到{@link RequestCount#linkedBlockingDeque}队列中
      *
      * @param joinPoint 连接点，就是被拦截点
      */
@@ -45,7 +52,6 @@ public class RequestAspect {
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         //获取到请求对象
         HttpServletRequest request = attributes.getRequest();
-
         //获取当前请求的毫秒值
         long requestTimeMillis = System.currentTimeMillis();
         //获取接口的请求地址

@@ -20,12 +20,17 @@ import java.util.concurrent.*;
  * @author guguoyu
  * @version 1.0
  * @since 2018/10/25
+ * @since 1.8
  */
 @Component
 public class RequestCount {
 
     private final Logger logger = LoggerFactory.getLogger(RequestCount.class);
 
+    /**
+     * 此字段为一个阻塞队列<br>
+     * 用来存储请求的数据{@link RequestDataDto},其中的属性有请求地址{@link RequestDataDto#requestURL}、请求时间戳{@link RequestDataDto#requestTimeMillis}
+     */
     private BlockingDeque<RequestDataDto> linkedBlockingDeque = new LinkedBlockingDeque<>(100000);
 
     public BlockingDeque<RequestDataDto> getLinkedBlockingDeque() {
@@ -33,8 +38,8 @@ public class RequestCount {
     }
 
     /**
-     * 用来存储每次请求的数据
-     * key为请求地址，例如：http:127.0.0.1:8080/testrequest
+     * 此字段用来存储每次请求的数据
+     * key为请求地址，例如：http:127.0.0.1:8080/monitor
      * value为一个 子map，其中 子map中的key为请求时间的时间戳，子map中的value为对应的请求次数
      */
     private Map<String, Map<Long, Integer>> requestMap = new ConcurrentHashMap<>();
@@ -42,29 +47,42 @@ public class RequestCount {
 
     /**
      * 用来保存每个请求 在某个时间段 的最大访问量
-     * key为请求的地址，例如：http:127.0.0.1:8080/testrequest
-     * value为一个实体类MaxRequestCountDto,其中的属性有请求地址，开始时间，结束时间，以及 此时间段的最大访问量
+     * key为请求的地址，例如：http:127.0.0.1:8080/monitor
+     * value为一个实体类{@link MaxRequestCountDto},其中的属性有
+     * 请求地址{@link MaxRequestCountDto#requestURL}，
+     * 开始时间{@link MaxRequestCountDto#startTime}，
+     * 结束时间{@link MaxRequestCountDto#endTime}
+     * 此时间段的最大访问量{@link MaxRequestCountDto#maxCount}
      */
     private Map<String, MaxRequestCountDto> maxRequestCountMap = new ConcurrentHashMap<>();
 
 
+    /**
+     * 此方法会返回队列最前端的数据{@link RequestDataDto}
+     * @return 返回一个请求数据
+     * @throws InterruptedException 从队列中拿数据有可能出现打断异常
+     */
     public RequestDataDto take() throws InterruptedException {
-        RequestDataDto requestDataDto = this.linkedBlockingDeque.take();
+        RequestDataDto requestDataDto = linkedBlockingDeque.take();
         return requestDataDto;
     }
 
+
     /**
      * 此方法主要是将请求的队列中数据统计到requestMap中
+     *
+     * @param requestURL        请求的地址
+     * @param requestTimeMillis 请求的时间戳（毫秒）
      */
     public void put(String requestURL, Long requestTimeMillis) {
-        Map<Long, Integer> curTimeCountMap = this.requestMap.get(requestURL);
+        Map<Long, Integer> curTimeCountMap = requestMap.get(requestURL);
         if (null == curTimeCountMap) {//curTimeCountMap为null，说明是第一次请求
             //为空，则直接创建一个新对象，
             curTimeCountMap = new ConcurrentHashMap<Long, Integer>();
             //并将当前时间作为key，1作为次数存入
             curTimeCountMap.put(requestTimeMillis, 1);
             //存入到内存中
-            this.requestMap.put(requestURL, curTimeCountMap);
+            requestMap.put(requestURL, curTimeCountMap);
         } else {//curTimeCounMap != null
             //获取该请求对应的时间戳的访问次数
             Integer requestCount = curTimeCountMap.get(requestTimeMillis);
@@ -82,6 +100,8 @@ public class RequestCount {
      * 2.计算每个接口最近一分钟的访问数量maxTemp，并与内存保存的最大访问数量进行比较，
      * 如果maxTemp＞内存中保存的，则更新内存数据
      * 此方法会有一个定时任务每隔1秒过来执行
+     *
+     * @param curTimeMillis 更新时间
      */
     public void update(long curTimeMillis) {
         /*计算出1分钟之前的时间毫秒值*/

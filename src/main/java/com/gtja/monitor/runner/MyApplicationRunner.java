@@ -10,12 +10,13 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 /**
- * 此类实现了ApplicationRunner
- * 只要工程一启动，就会执行此类下的run方法
+ * 此类实现了{@link ApplicationRunner}
+ * 只要工程一启动，就会执行此类下的{@link #run(ApplicationArguments)}方法
  *
  * @author guguoyu
  * @version 1.0
- * @since 2018/10/22
+ * @since 2018/10/26
+ * @since 1.8
  */
 @Component
 public class MyApplicationRunner implements ApplicationRunner {
@@ -24,6 +25,15 @@ public class MyApplicationRunner implements ApplicationRunner {
     @Autowired
     private RequestCount requestCount;
 
+    /**
+     * 此方法是一个消费者线程，是一个无限循环的流程，其逻辑如下：<br>
+     * 1.首先从队列中获取实体类对象{@link RequestDataDto requestDataDto}，其包含字段有：请求地址、请求时间戳<br>
+     * 2.然后将请求地址、请求时间戳作为入参，调用{@link RequestCount requestCount}的{@link RequestCount#put(String, Long)}方法，将数据存入内存中<br>
+     * 3.最后调用{@link RequestCount requestCount}的{@link RequestCount#update(long)}方法，更新最大访问量数据.<br>
+     *
+     * @param args 就相当于我们main函数的args
+     * @throws Exception 从linkedBlockingQueue队列中获取数据可能会出现异常
+     */
     @Override
     public void run(ApplicationArguments args) throws Exception {
         while (true) {

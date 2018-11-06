@@ -6,6 +6,7 @@ package com.gtja.monitor.dto;
  * @author guguoyu
  * @version 1.0
  * @since 2018/11/2 11:35
+ * @since 1.8
  */
 public class RequestDataDto {
     /*请求地址*/

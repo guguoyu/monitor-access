@@ -6,6 +6,7 @@ package com.gtja.monitor.dto;
  * @author guguoyu
  * @version 1.0
  * @since 2018/10/25 14:49
+ * @since 1.8
  */
 public class MaxRequestCountDto {
     //请求地址

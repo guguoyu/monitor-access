@@ -1,9 +1,11 @@
 package com.gtja.monitor.annotation;
 
 /**
- * @ClassName MonitorRequest.java
+ *
  * @author guguoyu
- * @date 2018-10-19
+ * @version 1.0
+ * @since 2018/10/15
+ * @since 1.8
  */
 import java.lang.annotation.*;
 
